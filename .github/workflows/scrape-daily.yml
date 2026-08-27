@@ -1,0 +1,51 @@
+name: Revisión diaria de comprar.ar
+
+on:
+  schedule:
+    # 11:00 UTC = 08:00 hora Argentina (no hay horario de verano en AR)
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: "Guardar capturas/HTML de debug como artifact (para calibrar selectores)"
+        type: boolean
+        default: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Ejecutar scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COMPRAR_USER: ${{ secrets.COMPRAR_USER }}
+          COMPRAR_PASS: ${{ secrets.COMPRAR_PASS }}
+          AVISO_VENCIMIENTO_DIAS: ${{ vars.AVISO_VENCIMIENTO_DIAS }}
+        run: |
+          if [ "${{ inputs.debug }}" = "true" ]; then
+            npm run scrape -- --debug
+          else
+            npm run scrape
+          fi
+
+      - name: Subir capturas de debug
+        if: always() && inputs.debug == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-debug
+          path: scripts/debug/
+          if-no-files-found: ignore
+          retention-days: 7
