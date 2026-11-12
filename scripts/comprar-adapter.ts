@@ -77,28 +77,22 @@ export async function iniciarSesion(page: Page): Promise<void> {
   await paso(page, "1-tras-click-ingresar");
 
   // Paso 1: pantalla de comprar.gob.ar, solo pide el usuario.
-  // TODO(calibrar): ajustar el selector al campo real de usuario de
-  // comprar.gob.ar (puede ser distinto al de GDE) según la captura
-  // "paso-1-tras-click-ingresar".
-  await page.fill(
-    'input[name="usuario"], input[name="cuit"], input[type="email"]',
-    usuario,
-  );
-  await page.click('button[type="submit"]');
+  // Pantalla "Ingresá" de Argentina.gob.ar: pide CUIL/CUIT/Pasaporte.
+  // Confirmado con captura real (calibrado):
+  await page.fill("#txtUsername_txtTextBox", usuario);
+  await page.click("#lnkConfirmar");
   await page.waitForLoadState("networkidle");
   await paso(page, "2-tras-usuario-comprar");
 
-  // Paso 2: ya redirigido a GDE, pide usuario + contraseña.
-  // TODO(calibrar): ajustar estos selectores al formulario real de GDE
-  // según la captura "paso-2-tras-usuario-comprar".
-  // Si GDE ya trae el usuario precargado (por venir de comprar.gob.ar), este
-  // fill es inofensivo: solo reemplaza el valor por el mismo.
+  // Paso 2: siguiente pantalla de Argentina.gob.ar, debería pedir la
+  // contraseña (todavía sin calibrar selector exacto — ajustar según la
+  // captura "paso-2-tras-usuario-comprar" del próximo run).
+  // TODO(calibrar): reemplazar por el selector real una vez visto el HTML.
   await page.fill(
-    'input[name="usuario"], input[name="cuit"], input[type="email"]',
-    usuario,
+    'input[name="password"], input[type="password"], #txtPassword_txtTextBox',
+    password,
   );
-  await page.fill('input[name="password"], input[type="password"]', password);
-  await page.click('button[type="submit"]');
+  await page.click('#lnkConfirmar, button[type="submit"]');
   await page.waitForLoadState("networkidle");
   await paso(page, "3-tras-login-gde");
 
