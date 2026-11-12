@@ -8,23 +8,30 @@ nuevas, cambios de estado y vencimientos de plazos próximos.
 
 - **Dashboard** (Next.js + Supabase Auth): pantalla de "Novedades" y un
   ABM de "Expedientes" para decirle al sistema qué procesos seguir.
-- **Scraper** (`scripts/scrape.ts`, Playwright): corre una vez por día vía
-  GitHub Actions, se loguea en comprar.gob.ar, visita cada expediente activo,
-  compara contra el último snapshot guardado y genera novedades cuando
-  hay diferencias.
+- **Scraper** (`scripts/scrape.ts`, Playwright): corre una vez por día **en
+  tu PC** (no en GitHub Actions — ver por qué más abajo), se loguea en
+  comprar.gob.ar, visita cada expediente activo, compara contra el último
+  snapshot guardado y genera novedades cuando hay diferencias.
 - **Supabase** (Postgres): guarda expedientes, snapshots históricos y
   novedades. El scraper escribe con la *service role key* (sin pasar por
   RLS); el dashboard lee/escribe como usuario autenticado.
 
 ```
-GitHub Actions (cron diario)
+Tu PC (Programador de Tareas, 1 vez por día)
         │  login + scrape
         ▼
    comprar.gob.ar  ──►  scripts/scrape.ts  ──►  Supabase (snapshots, novedades)
                                                     ▲
                                                     │ lee/marca leídas
-                                              Dashboard Next.js (vos)
+                                              Dashboard Next.js (Vercel)
 ```
+
+⚠️ **Por qué no corre en GitHub Actions**: el login de comprar.gob.ar pasa
+por GDE (`cas.gde.gob.ar`), que tiene un desafío anti-bots de Cloudflare.
+Las IPs de los runners de GitHub Actions (datacenter de Microsoft) quedan
+bloqueadas ahí, aunque los selectores estén bien calibrados. Tu conexión
+normal de casa/oficina no tiene ese problema, así que el scraper corre
+desde tu propia PC con una tarea programada diaria.
 
 ## 1. Crear el proyecto en Supabase
 
@@ -59,27 +66,62 @@ Para tenerlo accesible desde el celular todos los días, lo más simple es
 deployarlo en [Vercel](https://vercel.com) (gratis para este uso) con las
 mismas dos variables de entorno públicas.
 
-## 3. Configurar el scraper (GitHub Actions)
+## 3. Configurar el scraper en tu PC (Windows)
 
-En **Settings → Secrets and variables → Actions** de este repo, cargá
-estos *secrets*:
+### 3.1. Instalar lo necesario (una sola vez)
 
-| Secret | Valor |
-|---|---|
-| `SUPABASE_URL` | mismo que `NEXT_PUBLIC_SUPABASE_URL` |
-| `SUPABASE_SERVICE_ROLE_KEY` | la *service role key* de Supabase |
-| `COMPRAR_USER` | tu usuario de comprar.gob.ar |
-| `COMPRAR_PASS` | tu contraseña de comprar.gob.ar |
+1. Instalá [Node.js](https://nodejs.org) versión 22 o superior (bajá el
+   instalador "LTS" o el que diga 22.x, para Windows).
+2. Instalá [Git](https://git-scm.com/downloads) si no lo tenés.
+3. Abrí una terminal (**PowerShell** o **Símbolo del sistema**) y cloná el
+   repo:
+   ```bash
+   git clone https://github.com/grd1981/compras-comprar-monitor.git
+   cd compras-comprar-monitor
+   npm install
+   npx playwright install chromium
+   ```
 
-El workflow [`scrape-daily.yml`](./.github/workflows/scrape-daily.yml) ya
-está programado para correr todos los días a las 08:00 (hora Argentina).
-También lo podés disparar a mano desde la pestaña **Actions** del repo
-("Run workflow").
+### 3.2. Crear el archivo de variables (`.env.local`)
 
-⚠️ Guardá `COMPRAR_PASS` **solo** como GitHub Secret. Nunca me la pases a
-mí por chat ni la escribas en ningún archivo del repo — un secret de
-GitHub Actions no es legible ni por vos una vez guardado, y el scraper
-solo lo usa en memoria dentro de la corrida.
+En la carpeta del proyecto, copiá `.env.example` a `.env.local` y
+completalo con estos 5 valores:
+
+```
+SUPABASE_URL=https://xiglmxylurspjszytcgj.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<tu secret key de Supabase>
+COMPRAR_USER=<tu CUIL/CUIT, sin guiones>
+COMPRAR_PASS=<tu contraseña de Argentina.gob.ar/GDE>
+AVISO_VENCIMIENTO_DIAS=3
+```
+
+⚠️ Este archivo queda **solo en tu PC** (`.gitignore` ya lo excluye, nunca
+se sube a GitHub). Nadie más que vos lo ve.
+
+Probalo a mano una vez:
+```bash
+npm run scrape -- --debug
+```
+Si termina sin errores, está listo. Si falla, mandame el `.txt`/`.png` que
+se guarda en `scripts/debug/` como hicimos hasta ahora.
+
+### 3.3. Programar que corra solo todos los días
+
+1. Abrí **Programador de tareas** (buscalo en el menú de Windows).
+2. **Crear tarea básica** → nombre: `Monitor de Compras`.
+3. Desencadenador: **Diariamente**, elegí el horario (ej: 08:00, con tu PC
+   prendida y conectada a internet a esa hora).
+4. Acción: **Iniciar un programa**.
+   - Programa/script: `npm.cmd`
+   - Agregar argumentos: `run scrape`
+   - Iniciar en: la ruta completa de la carpeta del proyecto (ej.
+     `C:\Users\TuUsuario\compras-comprar-monitor`)
+5. Finalizar. Podés hacer click derecho → **Ejecutar** para probarla ya
+   mismo sin esperar al horario programado.
+
+Si tu PC es Mac o Linux, el equivalente es un `cron` diario corriendo
+`npm run scrape` desde la carpeta del proyecto (avisame y te paso los
+pasos exactos para tu caso).
 
 ## 4. Calibrar los selectores del sitio (importante)
 
@@ -89,24 +131,22 @@ archivo con lógica específica del sitio — arranca con selectores
 "razonables" pero **probablemente no coincidan exactamente** con el HTML
 real hasta que los ajustes una vez.
 
-⚠️ **Login vía GDE**: comprar.gob.ar no tiene login propio — usa como
-identidad **GDE** (Gestión Documental Electrónica). El scraper navega a
-comprar.gob.ar y deja que la redirección a GDE ocurra sola; el formulario que
-completa con `COMPRAR_USER`/`COMPRAR_PASS` es el de GDE. Si en las
-capturas de debug ves que GDE pide **captcha o un segundo factor**
-(SMS/TOTP), la automatización completa de ese paso no va a funcionar tal
-cual — avisame apenas lo veas y lo resolvemos con otro enfoque (por
-ejemplo, reutilizar una sesión ya logueada en vez de loguear desde cero
-en cada corrida).
+⚠️ **Login vía GDE**: comprar.gob.ar no tiene login propio — el link
+"Ingresar" lleva a la pantalla de identidad de Argentina.gob.ar
+(CUIL/CUIT/Pasaporte) y de ahí a `cas.gde.gob.ar` (GDE) para la
+contraseña; al autenticar, vuelve a comprar.gob.ar ya logueado por SSO.
+Si en las capturas de debug ves que pide **captcha o un segundo factor**
+(SMS/TOTP) más allá del desafío de Cloudflare ya resuelto, avisame y lo
+vemos con otro enfoque.
 
-Cómo calibrarlo:
+Cómo calibrarlo (ahora siempre en tu PC, por el bloqueo de Cloudflare a
+GitHub Actions explicado arriba):
 
-1. Corré el workflow manualmente desde GitHub Actions con la opción
-   **debug** en `true` (o localmente: `npm run scrape -- --debug` con las
-   variables de `.env.example` cargadas en tu shell).
-2. Si algún selector no encuentra nada, vas a ver un artifact/carpeta
-   `scripts/debug/` con capturas de pantalla y el HTML de la página en
-   ese momento.
+1. Corré `npm run scrape -- --debug` con `.env.local` cargado.
+2. Si algún selector no encuentra nada, vas a ver en la carpeta
+   `scripts/debug/` capturas de pantalla y el HTML de la página en
+   ese momento (incluye una captura por cada paso del login, no solo al
+   fallar, para ver rápido hasta dónde llegó).
 3. Abrí esas capturas, inspeccioná el HTML real (clic derecho →
    Inspeccionar en el navegador) y ajustá los selectores en
    `comprar-adapter.ts` (`extraerEstado`, `extraerPlazoLimite`,
@@ -121,8 +161,10 @@ Es la única parte del proyecto que necesita esta vuelta manual — el resto
 
 1. Agregás expedientes a seguir en `/expedientes` (pausar/eliminar cuando
    ya no te interesan).
-2. Todos los días a las 08:00 corre el scraper solo.
-3. Entrás al dashboard y en `/` ves las novedades nuevas: consultas que
+2. Todos los días, a la hora que programaste en el Programador de Tareas
+   de tu PC, corre el scraper solo (con la PC prendida y conectada).
+3. Entrás al dashboard (desde cualquier lado, Vercel) y en `/` ves las
+   novedades nuevas: consultas que
    entraron, cambios de estado, y avisos de vencimiento próximo
    (configurable con `AVISO_VENCIMIENTO_DIAS`, 3 días por defecto).
 4. Marcás como leídas las que ya viste.

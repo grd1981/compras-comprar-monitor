@@ -1,9 +1,11 @@
 name: Revisión diaria de comprar.gob.ar
 
+# Sin "schedule": cas.gde.gob.ar (login de GDE) bloquea con un desafío de
+# Cloudflare a las IPs de datacenter de los runners de GitHub Actions, así
+# que la revisión diaria real corre en la PC del usuario (ver README,
+# sección "Correr el scraper en tu PC"). Este workflow queda solo para
+# disparar corridas manuales de debug si hace falta recalibrar algo.
 on:
-  schedule:
-    # 11:00 UTC = 08:00 hora Argentina (no hay horario de verano en AR)
-    - cron: "0 11 * * *"
   workflow_dispatch:
     inputs:
       debug:
