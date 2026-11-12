@@ -49,15 +49,20 @@ async function main() {
       } catch (err) {
         // Un expediente roto (ej: cambió de URL) no debe tumbar la
         // revisión de los demás.
-        console.error(`Error revisando expediente ${expediente.numero}:`, err);
-        if (DEBUG) await guardarDebug(page, `expediente-${expediente.numero}`);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`Error revisando expediente ${expediente.numero}:`);
+        console.error(msg);
+        if (err instanceof Error && err.stack) console.error(err.stack);
+        if (DEBUG) await guardarDebug(page, `expediente-${expediente.numero}`, msg);
       }
     }
   } catch (err) {
     ok = false;
     errorMsg = err instanceof Error ? err.message : String(err);
-    console.error("Error general del scraper:", err);
-    if (DEBUG) await guardarDebug(page, "error-general");
+    console.error("Error general del scraper:");
+    console.error(errorMsg);
+    if (err instanceof Error && err.stack) console.error(err.stack);
+    if (DEBUG) await guardarDebug(page, "error-general", errorMsg);
   } finally {
     await browser.close();
   }
@@ -131,14 +136,19 @@ async function revisarExpediente(
   }
 }
 
-async function guardarDebug(page: import("playwright").Page, nombre: string) {
+async function guardarDebug(
+  page: import("playwright").Page,
+  nombre: string,
+  errorMsg?: string | null,
+) {
   const dir = path.join(process.cwd(), "scripts", "debug");
   await mkdir(dir, { recursive: true });
   const base = path.join(dir, `${nombre}-${Date.now()}`);
   await page.screenshot({ path: `${base}.png`, fullPage: true }).catch(() => {});
   const html = await page.content().catch(() => null);
   if (html) await writeFile(`${base}.html`, html, "utf-8");
-  console.error(`Debug guardado en ${base}.{png,html}`);
+  if (errorMsg) await writeFile(`${base}.txt`, errorMsg, "utf-8");
+  console.error(`Debug guardado en ${base}.{png,html,txt}`);
 }
 
 main().catch((err) => {
