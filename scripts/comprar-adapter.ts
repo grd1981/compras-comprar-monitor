@@ -69,11 +69,11 @@ export async function iniciarSesion(page: Page): Promise<void> {
 
   // Paso 0: home pública de comprar.gob.ar. Hay que clickear "Ingresar"
   // (id="lnkIngresar") para llegar a la pantalla de login real.
-  await page.goto(ENTRY_URL, { waitUntil: "networkidle" });
+  await page.goto(ENTRY_URL, { waitUntil: "domcontentloaded" });
   await paso(page, "0-home");
 
   await page.click("#lnkIngresar");
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
   await paso(page, "1-tras-click-ingresar");
 
   // Paso 1: pantalla de comprar.gob.ar, solo pide el usuario.
@@ -81,7 +81,7 @@ export async function iniciarSesion(page: Page): Promise<void> {
   // Confirmado con captura real (calibrado):
   await page.fill("#txtUsername_txtTextBox", usuario);
   await page.click("#lnkConfirmar");
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
   await paso(page, "2-tras-usuario-comprar");
 
   // Paso 2: siguiente pantalla de Argentina.gob.ar, debería pedir la
@@ -93,7 +93,7 @@ export async function iniciarSesion(page: Page): Promise<void> {
     password,
   );
   await page.click('#lnkConfirmar, button[type="submit"]');
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
   await paso(page, "3-tras-login-gde");
 
   // TODO(calibrar): si GDE muestra un paso intermedio para elegir el
@@ -103,14 +103,14 @@ export async function iniciarSesion(page: Page): Promise<void> {
   // TODO(calibrar): reemplazar por un selector que solo exista una vez
   // logueado y de vuelta en comprar.gob.ar (ej: el menú de usuario, o el
   // link a "Mis procesos").
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
 }
 
 export async function extraerExpediente(
   page: Page,
   url: string,
 ): Promise<SnapshotData> {
-  await page.goto(url, { waitUntil: "networkidle" });
+  await page.goto(url, { waitUntil: "domcontentloaded" });
 
   // TODO(calibrar): estos tres extractores son los que más importa
   // afinar. Cada uno debe devolver `null`/`[]` si no encuentra nada en
