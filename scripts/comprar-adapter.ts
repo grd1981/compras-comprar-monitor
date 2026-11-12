@@ -1,6 +1,22 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import type { Page } from "playwright";
 import type { Consulta } from "../src/lib/types";
 import type { SnapshotData } from "./diff";
+
+const DEBUG = process.argv.includes("--debug");
+
+/** Captura una foto del estado actual, solo si --debug está activo. Sirve
+ * para ver cada paso del login sin esperar a que algo falle. */
+async function paso(page: Page, nombre: string): Promise<void> {
+  if (!DEBUG) return;
+  const dir = path.join(process.cwd(), "scripts", "debug");
+  await mkdir(dir, { recursive: true });
+  const base = path.join(dir, `paso-${nombre}-${Date.now()}`);
+  await page.screenshot({ path: `${base}.png`, fullPage: true }).catch(() => {});
+  const html = await page.content().catch(() => null);
+  if (html) await writeFile(`${base}.html`, html, "utf-8");
+}
 
 /**
  * ⚠️ ESTE ARCHIVO NECESITA CALIBRACIÓN CONTRA EL SITIO REAL.
@@ -51,21 +67,30 @@ export async function iniciarSesion(page: Page): Promise<void> {
     throw new Error("Faltan COMPRAR_USER y/o COMPRAR_PASS en el entorno.");
   }
 
-  // Paso 1: pantalla de comprar.gob.ar, solo pide el usuario.
+  // Paso 0: home pública de comprar.gob.ar. Hay que clickear "Ingresar"
+  // (id="lnkIngresar") para llegar a la pantalla de login real.
   await page.goto(ENTRY_URL, { waitUntil: "networkidle" });
+  await paso(page, "0-home");
 
+  await page.click("#lnkIngresar");
+  await page.waitForLoadState("networkidle");
+  await paso(page, "1-tras-click-ingresar");
+
+  // Paso 1: pantalla de comprar.gob.ar, solo pide el usuario.
   // TODO(calibrar): ajustar el selector al campo real de usuario de
-  // comprar.gob.ar (puede ser distinto al de GDE).
+  // comprar.gob.ar (puede ser distinto al de GDE) según la captura
+  // "paso-1-tras-click-ingresar".
   await page.fill(
     'input[name="usuario"], input[name="cuit"], input[type="email"]',
     usuario,
   );
   await page.click('button[type="submit"]');
+  await page.waitForLoadState("networkidle");
+  await paso(page, "2-tras-usuario-comprar");
 
   // Paso 2: ya redirigido a GDE, pide usuario + contraseña.
-  await page.waitForLoadState("networkidle");
-
-  // TODO(calibrar): ajustar estos selectores al formulario real de GDE.
+  // TODO(calibrar): ajustar estos selectores al formulario real de GDE
+  // según la captura "paso-2-tras-usuario-comprar".
   // Si GDE ya trae el usuario precargado (por venir de comprar.gob.ar), este
   // fill es inofensivo: solo reemplaza el valor por el mismo.
   await page.fill(
@@ -74,6 +99,8 @@ export async function iniciarSesion(page: Page): Promise<void> {
   );
   await page.fill('input[name="password"], input[type="password"]', password);
   await page.click('button[type="submit"]');
+  await page.waitForLoadState("networkidle");
+  await paso(page, "3-tras-login-gde");
 
   // TODO(calibrar): si GDE muestra un paso intermedio para elegir el
   // organismo/usuario de GDE con el que operar (algunos usuarios tienen
