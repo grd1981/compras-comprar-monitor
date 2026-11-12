@@ -35,14 +35,14 @@ export function NuevoExpedienteForm() {
       </div>
       <div className="space-y-1">
         <label htmlFor="url" className="text-xs font-medium">
-          URL del proceso en comprar.ar *
+          URL del proceso en comprar.gob.ar *
         </label>
         <input
           id="url"
           name="url"
           type="url"
           required
-          placeholder="https://comprar.ar/..."
+          placeholder="https://comprar.gob.ar/..."
           className={inputClasses}
         />
       </div>

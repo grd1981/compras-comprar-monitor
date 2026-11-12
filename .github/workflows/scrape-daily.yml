@@ -1,4 +1,4 @@
-name: Revisión diaria de comprar.ar
+name: Revisión diaria de comprar.gob.ar
 
 on:
   schedule:

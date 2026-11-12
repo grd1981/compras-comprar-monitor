@@ -15,7 +15,7 @@ export default function LoginPage() {
       >
         <h1 className="mb-1 text-xl font-semibold">Monitor de Compras</h1>
         <p className="mb-6 text-sm text-zinc-500">
-          Novedades diarias de procesos en comprar.ar
+          Novedades diarias de procesos en comprar.gob.ar
         </p>
 
         <div className="mb-4 space-y-1">

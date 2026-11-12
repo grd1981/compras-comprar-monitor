@@ -1,7 +1,7 @@
-# Monitor de Compras — comprar.ar
+# Monitor de Compras — comprar.gob.ar
 
 Dashboard privado + scraper diario para seguir novedades de procesos de
-compras y contrataciones en [comprar.ar](https://comprar.ar): consultas
+compras y contrataciones en [comprar.gob.ar](https://comprar.gob.ar): consultas
 nuevas, cambios de estado y vencimientos de plazos próximos.
 
 ## Cómo funciona
@@ -9,7 +9,7 @@ nuevas, cambios de estado y vencimientos de plazos próximos.
 - **Dashboard** (Next.js + Supabase Auth): pantalla de "Novedades" y un
   ABM de "Expedientes" para decirle al sistema qué procesos seguir.
 - **Scraper** (`scripts/scrape.ts`, Playwright): corre una vez por día vía
-  GitHub Actions, se loguea en comprar.ar, visita cada expediente activo,
+  GitHub Actions, se loguea en comprar.gob.ar, visita cada expediente activo,
   compara contra el último snapshot guardado y genera novedades cuando
   hay diferencias.
 - **Supabase** (Postgres): guarda expedientes, snapshots históricos y
@@ -20,7 +20,7 @@ nuevas, cambios de estado y vencimientos de plazos próximos.
 GitHub Actions (cron diario)
         │  login + scrape
         ▼
-   comprar.ar  ──►  scripts/scrape.ts  ──►  Supabase (snapshots, novedades)
+   comprar.gob.ar  ──►  scripts/scrape.ts  ──►  Supabase (snapshots, novedades)
                                                     ▲
                                                     │ lee/marca leídas
                                               Dashboard Next.js (vos)
@@ -53,7 +53,7 @@ npm run dev
 
 Entrá a `http://localhost:3000`, logueate con el usuario que creaste en
 Supabase Auth y agregá los expedientes que querés seguir (número, URL
-directa al proceso en comprar.ar, organismo opcional).
+directa al proceso en comprar.gob.ar, organismo opcional).
 
 Para tenerlo accesible desde el celular todos los días, lo más simple es
 deployarlo en [Vercel](https://vercel.com) (gratis para este uso) con las
@@ -68,8 +68,8 @@ estos *secrets*:
 |---|---|
 | `SUPABASE_URL` | mismo que `NEXT_PUBLIC_SUPABASE_URL` |
 | `SUPABASE_SERVICE_ROLE_KEY` | la *service role key* de Supabase |
-| `COMPRAR_USER` | tu usuario de comprar.ar |
-| `COMPRAR_PASS` | tu contraseña de comprar.ar |
+| `COMPRAR_USER` | tu usuario de comprar.gob.ar |
+| `COMPRAR_PASS` | tu contraseña de comprar.gob.ar |
 
 El workflow [`scrape-daily.yml`](./.github/workflows/scrape-daily.yml) ya
 está programado para correr todos los días a las 08:00 (hora Argentina).
@@ -83,15 +83,15 @@ solo lo usa en memoria dentro de la corrida.
 
 ## 4. Calibrar los selectores del sitio (importante)
 
-No tengo acceso a tu cuenta real de comprar.ar, así que
+No tengo acceso a tu cuenta real de comprar.gob.ar, así que
 [`scripts/comprar-adapter.ts`](./scripts/comprar-adapter.ts) — el único
 archivo con lógica específica del sitio — arranca con selectores
 "razonables" pero **probablemente no coincidan exactamente** con el HTML
 real hasta que los ajustes una vez.
 
-⚠️ **Login vía GDE**: comprar.ar no tiene login propio — usa como
+⚠️ **Login vía GDE**: comprar.gob.ar no tiene login propio — usa como
 identidad **GDE** (Gestión Documental Electrónica). El scraper navega a
-comprar.ar y deja que la redirección a GDE ocurra sola; el formulario que
+comprar.gob.ar y deja que la redirección a GDE ocurra sola; el formulario que
 completa con `COMPRAR_USER`/`COMPRAR_PASS` es el de GDE. Si en las
 capturas de debug ves que GDE pide **captcha o un segundo factor**
 (SMS/TOTP), la automatización completa de ese paso no va a funcionar tal
@@ -133,4 +133,4 @@ Es la única parte del proyecto que necesita esta vuelta manual — el resto
   entrar a mirar).
 - Vista de historial completo por expediente (hoy solo se guarda en la
   tabla `snapshots`, no tiene pantalla propia).
-- Soporte de 2FA/captcha en el login de comprar.ar, si el sitio lo pide.
+- Soporte de 2FA/captcha en el login de comprar.gob.ar, si el sitio lo pide.

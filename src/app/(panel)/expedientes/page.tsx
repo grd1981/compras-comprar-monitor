@@ -52,7 +52,7 @@ export default async function ExpedientesPage() {
                     rel="noreferrer"
                     className="text-xs text-blue-600 hover:underline dark:text-blue-400"
                   >
-                    Ver en comprar.ar
+                    Ver en comprar.gob.ar
                   </a>
                 </div>
                 <div className="flex flex-col items-end gap-2">

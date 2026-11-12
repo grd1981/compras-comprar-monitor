@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Monitor de Compras — comprar.ar",
-  description: "Seguimiento diario de novedades en procesos de comprar.ar",
+  title: "Monitor de Compras — comprar.gob.ar",
+  description: "Seguimiento diario de novedades en procesos de comprar.gob.ar",
 };
 
 export default function RootLayout({

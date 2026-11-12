@@ -5,7 +5,7 @@ import type { SnapshotData } from "./diff";
 /**
  * ⚠️ ESTE ARCHIVO NECESITA CALIBRACIÓN CONTRA EL SITIO REAL.
  *
- * No tengo forma de navegar comprar.ar con tus credenciales reales, así
+ * No tengo forma de navegar comprar.gob.ar con tus credenciales reales, así
  * que los selectores de abajo son un punto de partida razonable (basado
  * en cómo suelen armarse estos portales) pero probablemente no coincidan
  * 1:1 con el HTML real. Para calibrarlos:
@@ -18,17 +18,17 @@ import type { SnapshotData } from "./diff";
  *   4. Repetí hasta que el dry-run extraiga bien estado / consultas / plazo.
  *
  * Toda la lógica específica del sitio vive en este único archivo — el
- * resto del scraper (diff.ts, scrape.ts) no sabe nada de comprar.ar.
+ * resto del scraper (diff.ts, scrape.ts) no sabe nada de comprar.gob.ar.
  *
- * IMPORTANTE — login en DOS pasos vía GDE (SSO): comprar.ar no tiene
+ * IMPORTANTE — login en DOS pasos vía GDE (SSO): comprar.gob.ar no tiene
  * login propio. El flujo real (confirmado por el usuario) es:
  *
- *   1. comprar.ar pide solo el USUARIO (sin contraseña) y redirige a GDE.
+ *   1. comprar.gob.ar pide solo el USUARIO (sin contraseña) y redirige a GDE.
  *   2. GDE pide usuario + contraseña y, al autenticar, redirige de vuelta
- *      a comprar.ar ya logueado por SSO.
+ *      a comprar.gob.ar ya logueado por SSO.
  *
  * Por eso `iniciarSesion` completa el formulario en dos tandas: primero
- * el campo de usuario en comprar.ar, y luego usuario+contraseña en la
+ * el campo de usuario en comprar.gob.ar, y luego usuario+contraseña en la
  * página de GDE a la que redirige.
  *
  * ⚠️ Riesgo real a verificar en la calibración: si el login de GDE pide
@@ -38,8 +38,8 @@ import type { SnapshotData } from "./diff";
  * cookies guardadas a mano, en vez de loguear desde cero cada corrida).
  */
 
-const BASE_URL = "https://comprar.ar";
-// URL de la pantalla de comprar.ar donde se tipea el usuario antes de
+const BASE_URL = "https://comprar.gob.ar";
+// URL de la pantalla de comprar.gob.ar donde se tipea el usuario antes de
 // redirigir a GDE. Si tenés el link directo a esa pantalla, pasalo acá.
 const ENTRY_URL = process.env.COMPRAR_LOGIN_URL ?? BASE_URL;
 
@@ -51,11 +51,11 @@ export async function iniciarSesion(page: Page): Promise<void> {
     throw new Error("Faltan COMPRAR_USER y/o COMPRAR_PASS en el entorno.");
   }
 
-  // Paso 1: pantalla de comprar.ar, solo pide el usuario.
+  // Paso 1: pantalla de comprar.gob.ar, solo pide el usuario.
   await page.goto(ENTRY_URL, { waitUntil: "networkidle" });
 
   // TODO(calibrar): ajustar el selector al campo real de usuario de
-  // comprar.ar (puede ser distinto al de GDE).
+  // comprar.gob.ar (puede ser distinto al de GDE).
   await page.fill(
     'input[name="usuario"], input[name="cuit"], input[type="email"]',
     usuario,
@@ -66,7 +66,7 @@ export async function iniciarSesion(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle");
 
   // TODO(calibrar): ajustar estos selectores al formulario real de GDE.
-  // Si GDE ya trae el usuario precargado (por venir de comprar.ar), este
+  // Si GDE ya trae el usuario precargado (por venir de comprar.gob.ar), este
   // fill es inofensivo: solo reemplaza el valor por el mismo.
   await page.fill(
     'input[name="usuario"], input[name="cuit"], input[type="email"]',
@@ -80,7 +80,7 @@ export async function iniciarSesion(page: Page): Promise<void> {
   // varios), agregar acá el click correspondiente antes de seguir.
 
   // TODO(calibrar): reemplazar por un selector que solo exista una vez
-  // logueado y de vuelta en comprar.ar (ej: el menú de usuario, o el
+  // logueado y de vuelta en comprar.gob.ar (ej: el menú de usuario, o el
   // link a "Mis procesos").
   await page.waitForLoadState("networkidle");
 }
