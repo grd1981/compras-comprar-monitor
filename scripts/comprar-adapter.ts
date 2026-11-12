@@ -19,10 +19,27 @@ import type { SnapshotData } from "./diff";
  *
  * Toda la lógica específica del sitio vive en este único archivo — el
  * resto del scraper (diff.ts, scrape.ts) no sabe nada de comprar.ar.
+ *
+ * IMPORTANTE — login vía GDE (SSO): comprar.ar no tiene login propio, usa
+ * como identidad GDE (Gestión Documental Electrónica). Al entrar a una
+ * sección privada de comprar.ar, el sitio redirige automáticamente al
+ * login de GDE; una vez autenticado ahí, GDE redirige de vuelta a
+ * comprar.ar ya logueado. Por eso acá NO navegamos a una URL de login de
+ * comprar.ar: navegamos a una página privada de comprar.ar (la de un
+ * expediente, por ejemplo) y dejamos que la redirección a GDE ocurra
+ * sola; el formulario que se completa es el de GDE.
+ *
+ * ⚠️ Riesgo real a verificar en la calibración: si el login de GDE pide
+ * captcha o un segundo factor (SMS/TOTP), la automatización completa NO
+ * va a ser posible tal cual — en ese caso avisame apenas lo veas en las
+ * capturas de debug y vemos una alternativa (ej: sesión persistente con
+ * cookies guardadas a mano, en vez de loguear desde cero cada corrida).
  */
 
 const BASE_URL = "https://comprar.ar";
-const LOGIN_URL = process.env.COMPRAR_LOGIN_URL ?? `${BASE_URL}/login`;
+// URL de una página privada de comprar.ar que dispare la redirección a
+// GDE. Si tenés un link directo a "Mis procesos" o similar, pasalo acá.
+const ENTRY_URL = process.env.COMPRAR_LOGIN_URL ?? BASE_URL;
 
 export async function iniciarSesion(page: Page): Promise<void> {
   const usuario = process.env.COMPRAR_USER;
@@ -32,12 +49,21 @@ export async function iniciarSesion(page: Page): Promise<void> {
     throw new Error("Faltan COMPRAR_USER y/o COMPRAR_PASS en el entorno.");
   }
 
-  await page.goto(LOGIN_URL, { waitUntil: "networkidle" });
+  // Navegamos a comprar.ar y dejamos que redirija solo a GDE.
+  await page.goto(ENTRY_URL, { waitUntil: "networkidle" });
 
-  // TODO(calibrar): ajustar estos selectores al formulario real de login.
-  await page.fill('input[name="usuario"], input[type="email"]', usuario);
+  // TODO(calibrar): ajustar estos selectores al formulario real de GDE.
+  // GDE suele pedir CUIT/usuario y contraseña en una sola pantalla.
+  await page.fill(
+    'input[name="usuario"], input[name="cuit"], input[type="email"]',
+    usuario,
+  );
   await page.fill('input[name="password"], input[type="password"]', password);
   await page.click('button[type="submit"]');
+
+  // TODO(calibrar): si GDE muestra un paso intermedio para elegir el
+  // organismo/usuario de GDE con el que operar (algunos usuarios tienen
+  // varios), agregar acá el click correspondiente antes de seguir.
 
   // TODO(calibrar): reemplazar por un selector que solo exista una vez
   // logueado (ej: el menú de usuario, o el link a "Mis procesos").

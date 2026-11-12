@@ -89,6 +89,16 @@ archivo con lógica específica del sitio — arranca con selectores
 "razonables" pero **probablemente no coincidan exactamente** con el HTML
 real hasta que los ajustes una vez.
 
+⚠️ **Login vía GDE**: comprar.ar no tiene login propio — usa como
+identidad **GDE** (Gestión Documental Electrónica). El scraper navega a
+comprar.ar y deja que la redirección a GDE ocurra sola; el formulario que
+completa con `COMPRAR_USER`/`COMPRAR_PASS` es el de GDE. Si en las
+capturas de debug ves que GDE pide **captcha o un segundo factor**
+(SMS/TOTP), la automatización completa de ese paso no va a funcionar tal
+cual — avisame apenas lo veas y lo resolvemos con otro enfoque (por
+ejemplo, reutilizar una sesión ya logueada en vez de loguear desde cero
+en cada corrida).
+
 Cómo calibrarlo:
 
 1. Corré el workflow manualmente desde GitHub Actions con la opción
