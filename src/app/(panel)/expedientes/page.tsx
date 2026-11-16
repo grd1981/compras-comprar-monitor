@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { Expediente } from "@/lib/types";
 import { buttonDanger, cardClasses } from "@/lib/ui";
@@ -31,7 +32,9 @@ export default async function ExpedientesPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <p className="font-medium">
-                    {e.numero}{" "}
+                    <Link href={`/expedientes/${e.id}`} className="hover:underline">
+                      {e.numero}
+                    </Link>{" "}
                     {!e.activo && (
                       <span className="ml-2 rounded-full bg-zinc-200 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                         pausado

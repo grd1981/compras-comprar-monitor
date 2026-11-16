@@ -1,16 +1,9 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { Novedad, ScrapeRun } from "@/lib/types";
+import { formatFecha } from "@/lib/format";
 import { badgeClasses, buttonPrimary, cardClasses, tipoLabel } from "@/lib/ui";
 import { marcarLeida, marcarTodasLeidas } from "./actions";
-
-function formatFecha(iso: string) {
-  return new Date(iso).toLocaleString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -66,9 +59,9 @@ export default async function DashboardPage() {
           <p className="text-sm text-zinc-500">
             Todavía no hay novedades. Agregá expedientes para seguir en la
             sección{" "}
-            <a href="/expedientes" className="underline">
+            <Link href="/expedientes" className="underline">
               Expedientes
-            </a>
+            </Link>
             .
           </p>
         </div>
@@ -95,9 +88,7 @@ export default async function DashboardPage() {
                 <p className="text-sm">{n.detalle}</p>
                 {n.expediente && (
                   <a
-                    href={n.expediente.url}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={`/expedientes/${n.expediente.id}`}
                     className="text-xs text-blue-600 hover:underline dark:text-blue-400"
                   >
                     Expediente {n.expediente.numero}
