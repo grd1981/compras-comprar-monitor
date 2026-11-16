@@ -116,24 +116,35 @@ export async function iniciarSesion(page: Page): Promise<void> {
   // aleatorios en cada carga, así que NO hay que buscar por id: se
   // identifican por su placeholder. El botón "Acceder" es
   // type="button" (no "submit"), se busca por el texto.
-  // Confirmado con captura real (calibrado):
-  await page.fill('input[placeholder="Usuario/Cuil/Cuit"]', usuarioGde);
-  await page.fill('input[placeholder="Contraseña"]', password);
-
-  // Esta pantalla usa reCAPTCHA invisible de Google: si se clickea
-  // "Acceder" antes de que termine de cargar el script de Google, tira
-  // "grecaptcha is not defined" y el login falla en silencio (confirmado
-  // con captura real). Un humano tarda unos segundos en escribir
-  // usuario/contraseña, dándole tiempo de sobra; acá hay que esperarlo
-  // explícitamente.
+  // Confirmado con captura real (calibrado). Esta pantalla usa reCAPTCHA
+  // Enterprise invisible: analiza comportamiento (cadencia de tipeo,
+  // movimiento de mouse) para puntuar si es un bot. Con credenciales
+  // confirmadas como correctas a mano, el login igual falló en silencio
+  // vía Playwright — probablemente por completar los campos de forma
+  // instantánea (.fill), una señal típica de automatización. Por eso
+  // acá se "tipea" letra por letra con pausas, en vez de pegar el valor
+  // de una, y se espera que cargue el script de Google antes de tipear.
   await page
     .waitForFunction(() => typeof (window as unknown as { grecaptcha?: unknown }).grecaptcha !== "undefined", {
       timeout: 15000,
     })
     .catch(() => {});
-  await page.waitForTimeout(1500);
 
-  await page.click('button:has-text("Acceder")');
+  await page
+    .locator('input[placeholder="Usuario/Cuil/Cuit"]')
+    .pressSequentially(usuarioGde, { delay: 90 });
+  await page.waitForTimeout(300);
+  await page
+    .locator('input[placeholder="Contraseña"]')
+    .pressSequentially(password, { delay: 90 });
+  await page.waitForTimeout(800);
+
+  // Un poco de movimiento de mouse antes de clickear, como haría una
+  // persona (en vez de clickear directo a ciegas en una coordenada fija).
+  const acceder = page.locator('button:has-text("Acceder")');
+  await acceder.hover();
+  await page.waitForTimeout(400);
+  await acceder.click();
 
   // GDE es una app ZK: muchas acciones son AJAX, no navegaciones de
   // página completa. Si el login es correcto, en algún momento redirige
