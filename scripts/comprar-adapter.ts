@@ -6,6 +6,22 @@ import type { SnapshotData } from "./diff";
 
 const DEBUG = process.argv.includes("--debug");
 
+/** Cloudflare a veces muestra una pantalla intermedia "Just a moment..."
+ * mientras verifica que el navegador no sea un bot. Suele resolverse sola
+ * en pocos segundos sin intervención; esperamos a que el título cambie
+ * antes de seguir, en vez de asumir que ya cargó la página siguiente. */
+async function esperarCloudflare(page: Page): Promise<void> {
+  try {
+    await page.waitForFunction(
+      () => !document.title.toLowerCase().includes("just a moment"),
+      { timeout: 15000 },
+    );
+  } catch {
+    // Si a los 15s seguimos en el challenge, probablemente no se resuelve
+    // solo (ver captura de debug para confirmarlo).
+  }
+}
+
 /** Captura una foto del estado actual, solo si --debug está activo. Sirve
  * para ver cada paso del login sin esperar a que algo falle. */
 async function paso(page: Page, nombre: string): Promise<void> {
@@ -70,10 +86,12 @@ export async function iniciarSesion(page: Page): Promise<void> {
   // Paso 0: home pública de comprar.gob.ar. Hay que clickear "Ingresar"
   // (id="lnkIngresar") para llegar a la pantalla de login real.
   await page.goto(ENTRY_URL, { waitUntil: "domcontentloaded" });
+  await esperarCloudflare(page);
   await paso(page, "0-home");
 
   await page.click("#lnkIngresar");
   await page.waitForLoadState("domcontentloaded");
+  await esperarCloudflare(page);
   await paso(page, "1-tras-click-ingresar");
 
   // Paso 1: pantalla de comprar.gob.ar, solo pide el usuario.
@@ -82,6 +100,7 @@ export async function iniciarSesion(page: Page): Promise<void> {
   await page.fill("#txtUsername_txtTextBox", usuario);
   await page.click("#lnkConfirmar");
   await page.waitForLoadState("domcontentloaded");
+  await esperarCloudflare(page);
   await paso(page, "2-tras-usuario-comprar");
 
   // Paso 2: siguiente pantalla de Argentina.gob.ar, debería pedir la
@@ -94,6 +113,7 @@ export async function iniciarSesion(page: Page): Promise<void> {
   );
   await page.click('#lnkConfirmar, button[type="submit"]');
   await page.waitForLoadState("domcontentloaded");
+  await esperarCloudflare(page);
   await paso(page, "3-tras-login-gde");
 
   // TODO(calibrar): si GDE muestra un paso intermedio para elegir el
