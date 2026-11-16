@@ -110,19 +110,16 @@ export async function iniciarSesion(page: Page): Promise<void> {
   await esperarCloudflare(page);
   await paso(page, "2-tras-usuario-comprar");
 
-  // Paso 2: ya en la pantalla propia de GDE, pide usuario (ej: "dgrene")
-  // y contraseña — son credenciales GDE, no el CUIL de arriba.
-  // TODO(calibrar): reemplazar por los selectores reales una vez vistos
-  // en la captura "paso-2-tras-usuario-comprar" del próximo run.
-  await page.fill(
-    'input[name="usuario"], input[name="username"], #txtUsername_txtTextBox',
-    usuarioGde,
-  );
-  await page.fill(
-    'input[name="password"], input[type="password"], #txtPassword_txtTextBox',
-    password,
-  );
-  await page.click('#lnkConfirmar, button[type="submit"]');
+  // Paso 2: ya en la pantalla propia de GDE (cas.gde.gob.ar), pide
+  // usuario (ej: "dgrene") y contraseña — son credenciales GDE, no el
+  // CUIL de arriba. Esta pantalla usa un framework (ZK) que genera ids
+  // aleatorios en cada carga, así que NO hay que buscar por id: se
+  // identifican por su placeholder. El botón "Acceder" es
+  // type="button" (no "submit"), se busca por el texto.
+  // Confirmado con captura real (calibrado):
+  await page.fill('input[placeholder="Usuario/Cuil/Cuit"]', usuarioGde);
+  await page.fill('input[placeholder="Contraseña"]', password);
+  await page.click('button:has-text("Acceder")');
   await page.waitForLoadState("domcontentloaded");
   await esperarCloudflare(page);
   await paso(page, "3-tras-login-gde");
