@@ -186,6 +186,8 @@ export async function extraerExpediente(
   url: string,
 ): Promise<SnapshotData> {
   await page.goto(url, { waitUntil: "domcontentloaded" });
+  await esperarCloudflare(page);
+  await paso(page, "expediente");
 
   // TODO(calibrar): estos tres extractores son los que más importa
   // afinar. Cada uno debe devolver `null`/`[]` si no encuentra nada en
