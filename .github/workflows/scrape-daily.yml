@@ -5,6 +5,11 @@ name: Revisión diaria de comprar.gob.ar
 # que la revisión diaria real corre en la PC del usuario (ver README,
 # sección "Correr el scraper en tu PC"). Este workflow queda solo para
 # disparar corridas manuales de debug si hace falta recalibrar algo.
+#
+# Nota: scripts/scrape.ts ahora lanza el navegador con headless:false
+# (para evadir mejor la detección de Cloudflare), lo que probablemente
+# no funcione en este runner sin pantalla — la calibración real se hace
+# en la PC del usuario, este workflow puede no servir más que de backup.
 on:
   workflow_dispatch:
     inputs:
@@ -34,6 +39,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           COMPRAR_USER: ${{ secrets.COMPRAR_USER }}
+          COMPRAR_GDE_USER: ${{ secrets.COMPRAR_GDE_USER }}
           COMPRAR_PASS: ${{ secrets.COMPRAR_PASS }}
           AVISO_VENCIMIENTO_DIAS: ${{ vars.AVISO_VENCIMIENTO_DIAS }}
         run: |

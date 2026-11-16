@@ -85,13 +85,16 @@ mismas dos variables de entorno públicas.
 ### 3.2. Crear el archivo de variables (`.env.local`)
 
 En la carpeta del proyecto, copiá `.env.example` a `.env.local` y
-completalo con estos 5 valores:
+completalo con estos 6 valores. Son **3 credenciales distintas**, no
+confundirlas: el CUIL se usa en la pantalla de Argentina.gob.ar, y el
+usuario GDE + contraseña se usan después, en la pantalla propia de GDE.
 
 ```
 SUPABASE_URL=https://xiglmxylurspjszytcgj.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<tu secret key de Supabase>
 COMPRAR_USER=<tu CUIL/CUIT, sin guiones>
-COMPRAR_PASS=<tu contraseña de Argentina.gob.ar/GDE>
+COMPRAR_GDE_USER=<tu usuario GDE, ej: dgrene>
+COMPRAR_PASS=<tu contraseña de GDE>
 AVISO_VENCIMIENTO_DIAS=3
 ```
 

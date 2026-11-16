@@ -52,16 +52,17 @@ async function paso(page: Page, nombre: string): Promise<void> {
  * Toda la lógica específica del sitio vive en este único archivo — el
  * resto del scraper (diff.ts, scrape.ts) no sabe nada de comprar.gob.ar.
  *
- * IMPORTANTE — login en DOS pasos vía GDE (SSO): comprar.gob.ar no tiene
- * login propio. El flujo real (confirmado por el usuario) es:
+ * IMPORTANTE — login en DOS pasos, con identidades DISTINTAS (confirmado
+ * por el usuario): comprar.gob.ar no tiene login propio.
  *
- *   1. comprar.gob.ar pide solo el USUARIO (sin contraseña) y redirige a GDE.
- *   2. GDE pide usuario + contraseña y, al autenticar, redirige de vuelta
- *      a comprar.gob.ar ya logueado por SSO.
+ *   1. Click en "Ingresar" → pantalla de identidad de Argentina.gob.ar,
+ *      pide CUIL/CUIT/Pasaporte (variable COMPRAR_USER).
+ *   2. Redirige a GDE, que pide OTRO usuario (ej: "dgrene", variable
+ *      COMPRAR_GDE_USER — no es el CUIL) + contraseña (COMPRAR_PASS). Al
+ *      autenticar, vuelve a comprar.gob.ar ya logueado por SSO.
  *
- * Por eso `iniciarSesion` completa el formulario en dos tandas: primero
- * el campo de usuario en comprar.gob.ar, y luego usuario+contraseña en la
- * página de GDE a la que redirige.
+ * Son 3 variables de entorno distintas, no 2 — no confundir el CUIL con
+ * el usuario GDE.
  *
  * ⚠️ Riesgo real a verificar en la calibración: si el login de GDE pide
  * captcha o un segundo factor (SMS/TOTP), la automatización completa NO
@@ -76,11 +77,17 @@ const BASE_URL = "https://comprar.gob.ar";
 const ENTRY_URL = process.env.COMPRAR_LOGIN_URL ?? BASE_URL;
 
 export async function iniciarSesion(page: Page): Promise<void> {
-  const usuario = process.env.COMPRAR_USER;
+  // Son 3 datos distintos: el CUIL/CUIT/Pasaporte se usa en la pantalla
+  // de identidad de Argentina.gob.ar; el usuario GDE (ej: "dgrene") y la
+  // contraseña se usan después, en la pantalla propia de GDE.
+  const cuil = process.env.COMPRAR_USER;
+  const usuarioGde = process.env.COMPRAR_GDE_USER;
   const password = process.env.COMPRAR_PASS;
 
-  if (!usuario || !password) {
-    throw new Error("Faltan COMPRAR_USER y/o COMPRAR_PASS en el entorno.");
+  if (!cuil || !usuarioGde || !password) {
+    throw new Error(
+      "Faltan COMPRAR_USER, COMPRAR_GDE_USER y/o COMPRAR_PASS en el entorno.",
+    );
   }
 
   // Paso 0: home pública de comprar.gob.ar. Hay que clickear "Ingresar"
@@ -97,16 +104,20 @@ export async function iniciarSesion(page: Page): Promise<void> {
   // Paso 1: pantalla de comprar.gob.ar, solo pide el usuario.
   // Pantalla "Ingresá" de Argentina.gob.ar: pide CUIL/CUIT/Pasaporte.
   // Confirmado con captura real (calibrado):
-  await page.fill("#txtUsername_txtTextBox", usuario);
+  await page.fill("#txtUsername_txtTextBox", cuil);
   await page.click("#lnkConfirmar");
   await page.waitForLoadState("domcontentloaded");
   await esperarCloudflare(page);
   await paso(page, "2-tras-usuario-comprar");
 
-  // Paso 2: siguiente pantalla de Argentina.gob.ar, debería pedir la
-  // contraseña (todavía sin calibrar selector exacto — ajustar según la
-  // captura "paso-2-tras-usuario-comprar" del próximo run).
-  // TODO(calibrar): reemplazar por el selector real una vez visto el HTML.
+  // Paso 2: ya en la pantalla propia de GDE, pide usuario (ej: "dgrene")
+  // y contraseña — son credenciales GDE, no el CUIL de arriba.
+  // TODO(calibrar): reemplazar por los selectores reales una vez vistos
+  // en la captura "paso-2-tras-usuario-comprar" del próximo run.
+  await page.fill(
+    'input[name="usuario"], input[name="username"], #txtUsername_txtTextBox',
+    usuarioGde,
+  );
   await page.fill(
     'input[name="password"], input[type="password"], #txtPassword_txtTextBox',
     password,
