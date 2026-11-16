@@ -27,8 +27,22 @@ async function main() {
   let errorMsg: string | null = null;
   let revisados = 0;
 
-  const browser = await chromium.launch();
-  const context = await browser.newContext();
+  // headless:false + ocultar navigator.webdriver: el login pasa por
+  // Cloudflare (cas.gde.gob.ar), que detecta un Chromium automatizado
+  // "de manual" (headless clásico + navigator.webdriver=true) y lo
+  // deja trabado en el challenge "Just a moment...". Con esto se ve una
+  // ventana de Chromium en pantalla mientras corre.
+  const browser = await chromium.launch({
+    headless: false,
+    args: ["--disable-blink-features=AutomationControlled"],
+  });
+  const context = await browser.newContext({
+    userAgent:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  });
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+  });
   const page = await context.newPage();
 
   try {

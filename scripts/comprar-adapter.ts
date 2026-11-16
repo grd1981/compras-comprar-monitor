@@ -14,7 +14,7 @@ async function esperarCloudflare(page: Page): Promise<void> {
   try {
     await page.waitForFunction(
       () => !document.title.toLowerCase().includes("just a moment"),
-      { timeout: 15000 },
+      { timeout: 20000 },
     );
   } catch {
     // Si a los 15s seguimos en el challenge, probablemente no se resuelve
