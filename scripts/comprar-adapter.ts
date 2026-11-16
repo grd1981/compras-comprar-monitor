@@ -119,6 +119,20 @@ export async function iniciarSesion(page: Page): Promise<void> {
   // Confirmado con captura real (calibrado):
   await page.fill('input[placeholder="Usuario/Cuil/Cuit"]', usuarioGde);
   await page.fill('input[placeholder="Contraseña"]', password);
+
+  // Esta pantalla usa reCAPTCHA invisible de Google: si se clickea
+  // "Acceder" antes de que termine de cargar el script de Google, tira
+  // "grecaptcha is not defined" y el login falla en silencio (confirmado
+  // con captura real). Un humano tarda unos segundos en escribir
+  // usuario/contraseña, dándole tiempo de sobra; acá hay que esperarlo
+  // explícitamente.
+  await page
+    .waitForFunction(() => typeof (window as unknown as { grecaptcha?: unknown }).grecaptcha !== "undefined", {
+      timeout: 15000,
+    })
+    .catch(() => {});
+  await page.waitForTimeout(1500);
+
   await page.click('button:has-text("Acceder")');
   await page.waitForLoadState("domcontentloaded");
   await esperarCloudflare(page);
