@@ -189,10 +189,11 @@ export async function extraerExpediente(
   await esperarCloudflare(page);
   await paso(page, "expediente");
 
-  // TODO(calibrar): estos tres extractores son los que más importa
-  // afinar. Cada uno debe devolver `null`/`[]` si no encuentra nada en
-  // vez de tirar una excepción, para que un cambio de layout en una
-  // sección no tumbe la revisión de las otras.
+  // Calibrado contra una página real "VistaPreviaPliego.aspx" (ASP.NET
+  // clásico, ids de control estables — mucho más simple que el login).
+  // Cada extractor devuelve `null`/`[]` si no encuentra nada, en vez de
+  // tirar una excepción, para que un cambio de layout en una sección no
+  // tumbe la revisión de las otras.
   const estado = await extraerEstado(page);
   const plazoLimite = await extraerPlazoLimite(page);
   const consultas = await extraerConsultas(page);
@@ -200,42 +201,57 @@ export async function extraerExpediente(
   return { estado, plazo_limite: plazoLimite, consultas };
 }
 
+// La página no tiene un "estado del proceso" único y visible; lo más
+// cercano es el estado de la solicitud de contratación que lo originó
+// (ej: "Autorizada en Proceso", luego pasa a "Adjudicada", etc.) en la
+// tabla de "Solicitudes de contratación asignadas al proceso".
 async function extraerEstado(page: Page): Promise<string | null> {
-  const el = page.locator('[data-testid="estado-proceso"], .estado-proceso').first();
+  const el = page
+    .locator('table[id$="_SolicitudesGasto_gvSolicitudesGasto"] tbody tr')
+    .first()
+    .locator("td")
+    .nth(1);
   if ((await el.count()) === 0) return null;
   const texto = (await el.textContent())?.trim();
   return texto || null;
 }
 
+// "Fecha y hora acto de apertura" (sección Cronograma): es la fecha
+// límite real del proceso (cuándo se abren/vencen las ofertas).
 async function extraerPlazoLimite(page: Page): Promise<string | null> {
-  const el = page
-    .locator('[data-testid="fecha-limite"], .fecha-limite-oferta')
-    .first();
+  const el = page.locator('[id$="_Cronograma_lblFechaActoApertura"]').first();
   if ((await el.count()) === 0) return null;
   const texto = (await el.textContent())?.trim();
   if (!texto) return null;
   return parseFechaArgentina(texto);
 }
 
+// Las "Circulares" (sección propia) son la forma en que comprar.gob.ar
+// expone preguntas/respuestas de proveedores. No traemos el texto
+// completo de cada una (está detrás de un modal/postback, "Ver
+// Circular"): alcanza con detectar cuándo aparece una circular nueva —
+// el aviso linkea al expediente para que el usuario la abra y la lea.
 async function extraerConsultas(page: Page): Promise<Consulta[]> {
-  const filas = page.locator('[data-testid="consulta-item"], .consulta-item');
+  const filas = page.locator(
+    'table[id$="_Circulares_gvCirculares"] tbody tr',
+  );
   const total = await filas.count();
   const consultas: Consulta[] = [];
 
   for (let i = 0; i < total; i++) {
     const fila = filas.nth(i);
-    const id =
-      (await fila.getAttribute("data-consulta-id")) ?? `consulta-${i}`;
-    const texto = ((await fila.locator(".consulta-texto").first().textContent()) ?? "").trim();
-    const fecha = ((await fila.locator(".consulta-fecha").first().textContent()) ?? "").trim();
-    const respuestaLocator = fila.locator(".consulta-respuesta").first();
-    const respuesta =
-      (await respuestaLocator.count()) > 0
-        ? ((await respuestaLocator.textContent()) ?? "").trim() || null
-        : null;
+    const celdas = fila.locator("td");
+    const numero = ((await celdas.nth(0).textContent()) ?? "").trim();
+    const fecha = ((await celdas.nth(1).textContent()) ?? "").trim();
+    const tipo = ((await celdas.nth(2).textContent()) ?? "").trim();
 
-    if (texto) {
-      consultas.push({ id, texto, fecha: fecha || null, respuesta });
+    if (numero) {
+      consultas.push({
+        id: numero,
+        texto: `Circular Nº ${numero}${tipo ? ` (${tipo})` : ""}`,
+        fecha: fecha || null,
+        respuesta: null,
+      });
     }
   }
 
