@@ -1,4 +1,13 @@
+import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+
+// A diferencia de Next.js, un script suelto de Node/tsx no carga
+// .env.local por su cuenta. Esto se ejecuta antes de leer las variables
+// de abajo (dentro del mismo módulo, el orden de ejecución es el que
+// está escrito). Si el archivo no existe (ej: en GitHub Actions, donde
+// las variables ya vienen inyectadas por el workflow), config() no
+// rompe nada, solo no hace efecto.
+config({ path: ".env.local" });
 
 const url = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
