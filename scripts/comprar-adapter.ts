@@ -134,6 +134,15 @@ export async function iniciarSesion(page: Page): Promise<void> {
   await page.waitForTimeout(1500);
 
   await page.click('button:has-text("Acceder")');
+
+  // GDE es una app ZK: muchas acciones son AJAX, no navegaciones de
+  // página completa. Si el login es correcto, en algún momento redirige
+  // de vuelta a comprar.gob.ar (cambia de dominio); si falla, se queda
+  // en la misma pantalla. Esperamos a que pase el cambio de dominio,
+  // con un timeout generoso, antes de dar por terminado el paso.
+  await page
+    .waitForURL((url) => !url.hostname.includes("gde.gob.ar"), { timeout: 20000 })
+    .catch(() => {});
   await page.waitForLoadState("domcontentloaded");
   await esperarCloudflare(page);
   await paso(page, "3-tras-login-gde");
@@ -141,6 +150,19 @@ export async function iniciarSesion(page: Page): Promise<void> {
   // TODO(calibrar): si GDE muestra un paso intermedio para elegir el
   // organismo/usuario de GDE con el que operar (algunos usuarios tienen
   // varios), agregar acá el click correspondiente antes de seguir.
+
+  // Verificación: si seguimos viendo el link "Ingresar" (visible solo
+  // para usuarios NO logueados), el login falló en silencio —
+  // confirmado con una corrida real donde el formulario de GDE se vació
+  // sin mensaje de error visible y terminamos en la home pública. Mejor
+  // fallar fuerte acá que seguir como si nada.
+  const sigueDeslogueado = (await page.locator("#lnkIngresar").count()) > 0;
+  if (sigueDeslogueado) {
+    await paso(page, "4-login-fallido");
+    throw new Error(
+      "El login no se completó: seguimos viendo el link \"Ingresar\", o sea sin sesión iniciada. Revisá que COMPRAR_GDE_USER y COMPRAR_PASS sean correctos.",
+    );
+  }
 
   // TODO(calibrar): reemplazar por un selector que solo exista una vez
   // logueado y de vuelta en comprar.gob.ar (ej: el menú de usuario, o el
