@@ -32,7 +32,10 @@ export default async function ExpedientesPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <p className="font-medium">
-                    <Link href={`/expedientes/${e.id}`} className="hover:underline">
+                    <Link
+                      href={`/expedientes/${e.id}`}
+                      className="text-blue-600 hover:underline dark:text-blue-400"
+                    >
                       {e.numero}
                     </Link>{" "}
                     {!e.activo && (
