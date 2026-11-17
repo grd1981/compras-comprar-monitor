@@ -38,6 +38,17 @@ export function NuevoExpedienteForm() {
         </div>
       </div>
       <div className="space-y-1">
+        <label htmlFor="expediente_nro" className="text-xs font-medium">
+          Expediente (EX-...)
+        </label>
+        <input
+          id="expediente_nro"
+          name="expediente_nro"
+          placeholder="ej: EX-2026-13464411- -APN-DGM#EA"
+          className={inputClasses}
+        />
+      </div>
+      <div className="space-y-1">
         <label htmlFor="descripcion" className="text-xs font-medium">
           Objeto resumido
         </label>

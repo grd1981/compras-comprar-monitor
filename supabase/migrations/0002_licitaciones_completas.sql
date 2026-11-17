@@ -8,6 +8,7 @@
 alter table expedientes alter column url drop not null;
 
 alter table expedientes
+  add column if not exists expediente_nro text,
   add column if not exists objeto text,
   add column if not exists moneda text default 'ARS',
   add column if not exists monto_estimado numeric,

@@ -89,6 +89,14 @@ export function EditarExpedienteForm({ expediente }: { expediente: Expediente })
           </div>
         </div>
         <div className="space-y-1">
+          <label className="text-xs font-medium">Expediente (EX-...)</label>
+          <input
+            name="expediente_nro"
+            defaultValue={expediente.expediente_nro ?? ""}
+            className={inputClasses}
+          />
+        </div>
+        <div className="space-y-1">
           <label className="text-xs font-medium">Objeto resumido</label>
           <input
             name="descripcion"

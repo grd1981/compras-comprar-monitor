@@ -126,6 +126,7 @@ export default async function ExpedienteDetallePage({
         <h2 className="text-sm font-semibold">Ficha de la licitación</h2>
 
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Dato label="Expediente" valor={expediente.expediente_nro} />
           <Dato label="Procedimiento" valor={expediente.procedimiento} />
           <Dato label="Anexo" valor={expediente.anexo} />
           <Dato label="Ejercicio" valor={expediente.ejercicio} />

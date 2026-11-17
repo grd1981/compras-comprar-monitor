@@ -3,6 +3,7 @@ export type Expediente = {
   numero: string;
   organismo: string | null;
   descripcion: string | null;
+  expediente_nro: string | null;
   objeto: string | null;
   url: string | null;
   activo: boolean;

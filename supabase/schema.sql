@@ -12,6 +12,7 @@ create table if not exists expedientes (
   numero text not null,
   organismo text,
   descripcion text,
+  expediente_nro text,
   objeto text,
   url text,
   activo boolean not null default true,
