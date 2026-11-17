@@ -344,6 +344,14 @@ export function EditarExpedienteForm({ expediente }: { expediente: Expediente })
             className={inputClasses}
           >
             <option value="">—</option>
+            {expediente.estado_proceso &&
+              !(ESTADOS_PROCESO as readonly string[]).includes(
+                expediente.estado_proceso,
+              ) && (
+                <option value={expediente.estado_proceso}>
+                  {expediente.estado_proceso}
+                </option>
+              )}
             {ESTADOS_PROCESO.map((estado) => (
               <option key={estado} value={estado}>
                 {estado}

@@ -31,6 +31,8 @@ const ESTADO_PROCESO_CLASSES: Record<string, string> = {
   "En Apertura": "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   "En Evaluación": "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
   "Días de Impugnación": "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+  "En Juridico para Adjudicar": "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
+  "En UOC para iniciar": "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
   Desierta: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
   Fracasado: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
 };
@@ -48,6 +50,8 @@ export const ESTADOS_PROCESO = [
   "En Apertura",
   "Días de Impugnación",
   "En Evaluación",
+  "En Juridico para Adjudicar",
+  "En UOC para iniciar",
   "Adjudicado",
   "Desierta",
   "Fracasado",
