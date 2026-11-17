@@ -24,3 +24,31 @@ export const tipoLabel: Record<string, string> = {
   cambio_estado: "Cambio de estado",
   vencimiento_proximo: "Vencimiento próximo",
 };
+
+const ESTADO_PROCESO_CLASSES: Record<string, string> = {
+  Adjudicado: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  Publicado: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  "En Apertura": "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  "En Evaluación": "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
+  "Días de Impugnación": "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+  Desierta: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  Fracasado: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+};
+
+export function estadoProcesoClasses(estado: string | null): string {
+  if (!estado) return "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
+  return (
+    ESTADO_PROCESO_CLASSES[estado] ??
+    "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+  );
+}
+
+export const ESTADOS_PROCESO = [
+  "Publicado",
+  "En Apertura",
+  "Días de Impugnación",
+  "En Evaluación",
+  "Adjudicado",
+  "Desierta",
+  "Fracasado",
+] as const;

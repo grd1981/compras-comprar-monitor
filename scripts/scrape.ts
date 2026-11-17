@@ -11,6 +11,28 @@ const AVISO_VENCIMIENTO_DIAS = Number(
   process.env.AVISO_VENCIMIENTO_DIAS ?? "3",
 );
 
+/** Separa un ISO en fecha (YYYY-MM-DD) y hora (HH:MM) en horario de
+ * Argentina, para guardarlos en las columnas fecha_apertura/hora_apertura
+ * (que son las mismas que se cargaban a mano). */
+function fechaHoraArgentina(iso: string): { fecha: string; hora: string } {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const partes = Object.fromEntries(
+    fmt.formatToParts(new Date(iso)).map((p) => [p.type, p.value]),
+  );
+  return {
+    fecha: `${partes.year}-${partes.month}-${partes.day}`,
+    hora: `${partes.hour}:${partes.minute}`,
+  };
+}
+
 async function main() {
   const { data: runInsert, error: runError } = await supabaseAdmin
     .from("scrape_runs")
@@ -52,13 +74,15 @@ async function main() {
       .from("expedientes")
       .select("*")
       .eq("activo", true)
+      .not("url", "is", null)
       .returns<Expediente[]>();
 
     if (error) throw new Error(`No se pudieron leer expedientes: ${error.message}`);
 
     for (const expediente of expedientes ?? []) {
+      if (!expediente.url) continue; // calma a TypeScript; ya filtrado arriba
       try {
-        await revisarExpediente(page, expediente);
+        await revisarExpediente(page, expediente, expediente.url);
         revisados++;
       } catch (err) {
         // Un expediente roto (ej: cambió de URL) no debe tumbar la
@@ -97,8 +121,9 @@ async function main() {
 async function revisarExpediente(
   page: import("playwright").Page,
   expediente: Expediente,
+  url: string,
 ) {
-  const actual = await extraerExpediente(page, expediente.url);
+  const actual = await extraerExpediente(page, url);
 
   const { data: previaData } = await supabaseAdmin
     .from("snapshots")
@@ -126,6 +151,17 @@ async function revisarExpediente(
     plazo_limite: actual.plazo_limite,
     consultas: actual.consultas,
   });
+
+  // Autocompletar fecha/hora de apertura en la ficha de la licitación con
+  // lo que efectivamente dice comprar.gob.ar, para no tener que cargarlo
+  // a mano cada vez.
+  if (actual.plazo_limite) {
+    const { fecha, hora } = fechaHoraArgentina(actual.plazo_limite);
+    await supabaseAdmin
+      .from("expedientes")
+      .update({ fecha_apertura: fecha, hora_apertura: hora })
+      .eq("id", expediente.id);
+  }
 
   for (const candidata of candidatas) {
     if (candidata.tipo === "vencimiento_proximo") {
