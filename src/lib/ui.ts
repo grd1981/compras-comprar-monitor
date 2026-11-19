@@ -17,12 +17,15 @@ export const badgeClasses: Record<string, string> = {
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
   vencimiento_proximo:
     "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  movimiento_gde:
+    "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
 };
 
 export const tipoLabel: Record<string, string> = {
   consulta_nueva: "Consulta nueva",
   cambio_estado: "Cambio de estado",
   vencimiento_proximo: "Vencimiento próximo",
+  movimiento_gde: "Movimiento de expediente",
 };
 
 const ESTADO_PROCESO_CLASSES: Record<string, string> = {

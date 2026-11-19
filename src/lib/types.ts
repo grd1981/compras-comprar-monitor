@@ -69,10 +69,27 @@ export type Consulta = {
   respuesta: string | null;
 };
 
+export type MovimientoGde = {
+  orden: number | null;
+  tipo_documento: string | null;
+  numero_documento: string | null;
+  referencia: string | null;
+  fecha_asociacion: string | null;
+  fecha_creacion: string | null;
+};
+
+export type GdeSnapshot = {
+  id: string;
+  expediente_id: string;
+  movimientos: MovimientoGde[];
+  created_at: string;
+};
+
 export type NovedadTipo =
   | "consulta_nueva"
   | "cambio_estado"
-  | "vencimiento_proximo";
+  | "vencimiento_proximo"
+  | "movimiento_gde";
 
 export type Novedad = {
   id: string;

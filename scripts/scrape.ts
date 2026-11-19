@@ -3,8 +3,9 @@ import path from "node:path";
 import { chromium } from "playwright";
 import { supabaseAdmin } from "./supabase-admin";
 import { iniciarSesion, extraerExpediente } from "./comprar-adapter";
+import { buscarMovimientosGde } from "./gde-adapter";
 import { calcularNovedades, type SnapshotData } from "./diff";
-import type { Expediente, Snapshot } from "../src/lib/types";
+import type { Expediente, GdeSnapshot, Snapshot } from "../src/lib/types";
 
 const DEBUG = process.argv.includes("--debug");
 const AVISO_VENCIMIENTO_DIAS = Number(
@@ -48,6 +49,7 @@ async function main() {
   let ok = true;
   let errorMsg: string | null = null;
   let revisados = 0;
+  let revisadosGde = 0;
 
   // headless:false + ocultar navigator.webdriver: el login pasa por
   // Cloudflare (cas.gde.gob.ar), que detecta un Chromium automatizado
@@ -94,6 +96,35 @@ async function main() {
         if (DEBUG) await guardarDebug(page, `expediente-${expediente.numero}`, msg);
       }
     }
+
+    // Segunda pasada: movimientos de GDE (expediente electrónico), para
+    // los expedientes que tienen expediente_nro cargado. Es independiente
+    // de la URL de comprar.gob.ar — algunos expedientes tienen una cosa,
+    // otra, o ambas.
+    const { data: expedientesGde, error: errorGde } = await supabaseAdmin
+      .from("expedientes")
+      .select("*")
+      .eq("activo", true)
+      .not("expediente_nro", "is", null)
+      .returns<Expediente[]>();
+
+    if (errorGde) {
+      throw new Error(`No se pudieron leer expedientes (GDE): ${errorGde.message}`);
+    }
+
+    for (const expediente of expedientesGde ?? []) {
+      if (!expediente.expediente_nro) continue;
+      try {
+        await revisarExpedienteGde(page, expediente, expediente.expediente_nro);
+        revisadosGde++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`Error revisando GDE del expediente ${expediente.numero}:`);
+        console.error(msg);
+        if (err instanceof Error && err.stack) console.error(err.stack);
+        if (DEBUG) await guardarDebug(page, `gde-expediente-${expediente.numero}`, msg);
+      }
+    }
   } catch (err) {
     ok = false;
     errorMsg = err instanceof Error ? err.message : String(err);
@@ -112,6 +143,7 @@ async function main() {
       ok,
       error: errorMsg,
       expedientes_revisados: revisados,
+      expedientes_gde_revisados: revisadosGde,
     })
     .eq("id", runId);
 
@@ -182,6 +214,50 @@ async function revisarExpediente(
       expediente_id: expediente.id,
       tipo: candidata.tipo,
       detalle: candidata.detalle,
+    });
+  }
+}
+
+async function revisarExpedienteGde(
+  page: import("playwright").Page,
+  expediente: Expediente,
+  numeroExpediente: string,
+) {
+  const movimientos = await buscarMovimientosGde(page, numeroExpediente);
+
+  const { data: previaData } = await supabaseAdmin
+    .from("gde_snapshots")
+    .select("*")
+    .eq("expediente_id", expediente.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<GdeSnapshot>();
+
+  await supabaseAdmin.from("gde_snapshots").insert({
+    expediente_id: expediente.id,
+    movimientos,
+  });
+
+  // Igual que con los snapshots de comprar.gob.ar: en la primera revisión
+  // de un expediente (todavía no hay "previaData") no avisamos nada,
+  // porque no es una novedad, es solo la primera foto.
+  const actualTope = movimientos[0] ?? null;
+  const anteriorTope = previaData?.movimientos?.[0] ?? null;
+
+  const huboMovimientoNuevo =
+    previaData !== null &&
+    actualTope !== null &&
+    (anteriorTope === null ||
+      anteriorTope.orden !== actualTope.orden ||
+      anteriorTope.numero_documento !== actualTope.numero_documento);
+
+  if (huboMovimientoNuevo && actualTope) {
+    await supabaseAdmin.from("novedades").insert({
+      expediente_id: expediente.id,
+      tipo: "movimiento_gde",
+      detalle: `Nuevo movimiento en el expediente: ${actualTope.tipo_documento ?? "documento"}${
+        actualTope.numero_documento ? ` ${actualTope.numero_documento}` : ""
+      }.`,
     });
   }
 }

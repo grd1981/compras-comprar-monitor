@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { EjecucionOC, Expediente, Novedad, Snapshot } from "@/lib/types";
+import type { EjecucionOC, Expediente, GdeSnapshot, Novedad, Snapshot } from "@/lib/types";
 import { formatFechaCompleta, formatFechaCorta, formatMonto } from "@/lib/format";
 import { badgeClasses, buttonDanger, estadoProcesoClasses, tipoLabel } from "@/lib/ui";
 import { marcarLeida } from "../../actions";
@@ -75,7 +75,7 @@ export default async function ExpedienteDetallePage({
 
   if (!expediente) notFound();
 
-  const [{ data: snapshots }, { data: novedades }, { data: renglones }] =
+  const [{ data: snapshots }, { data: novedades }, { data: renglones }, { data: gdeSnapshot }] =
     await Promise.all([
       supabase
         .from("snapshots")
@@ -97,11 +97,19 @@ export default async function ExpedienteDetallePage({
         .eq("expediente_id", id)
         .order("renglon", { ascending: true })
         .returns<EjecucionOC[]>(),
+      supabase
+        .from("gde_snapshots")
+        .select("*")
+        .eq("expediente_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<GdeSnapshot>(),
     ]);
 
   const historial = snapshots ?? [];
   const actual = historial[0] ?? null;
   const listaNovedades = novedades ?? [];
+  const movimientosGde = gdeSnapshot?.movimientos ?? [];
   const listaRenglones = renglones ?? [];
 
   return (
@@ -362,6 +370,60 @@ export default async function ExpedienteDetallePage({
               Última revisión: {formatFechaCompleta(actual.created_at)}
             </p>
           </dl>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold">
+          Últimos movimientos del expediente en GDE
+        </h2>
+        {!expediente.expediente_nro ? (
+          <p className="text-sm text-zinc-500">
+            Cargá el número de expediente (EX-...) para que el scraper pueda
+            buscarlo en GDE.
+          </p>
+        ) : movimientosGde.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            Todavía no se registró ninguna revisión automática de GDE para
+            este expediente.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">
+                  <th className="px-2 py-1.5">Orden</th>
+                  <th className="px-2 py-1.5">Tipo de documento</th>
+                  <th className="px-2 py-1.5">Número</th>
+                  <th className="px-2 py-1.5">Referencia</th>
+                  <th className="px-2 py-1.5">Fecha de asociación</th>
+                </tr>
+              </thead>
+              <tbody>
+                {movimientosGde.map((m, i) => (
+                  <tr
+                    key={`${m.orden ?? i}-${m.numero_documento ?? i}`}
+                    className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
+                  >
+                    <td className="px-2 py-1.5">{m.orden ?? "—"}</td>
+                    <td className="px-2 py-1.5">{m.tipo_documento ?? "—"}</td>
+                    <td className="px-2 py-1.5">{m.numero_documento ?? "—"}</td>
+                    <td className="max-w-xs truncate px-2 py-1.5" title={m.referencia ?? ""}>
+                      {m.referencia ?? "—"}
+                    </td>
+                    <td className="px-2 py-1.5 text-zinc-500">
+                      {m.fecha_asociacion ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {gdeSnapshot && (
+          <p className="text-xs text-zinc-500">
+            Última revisión: {formatFechaCompleta(gdeSnapshot.created_at)}
+          </p>
         )}
       </div>
 

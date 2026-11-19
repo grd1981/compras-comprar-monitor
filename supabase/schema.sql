@@ -80,11 +80,23 @@ create table if not exists snapshots (
 create index if not exists snapshots_expediente_idx
   on snapshots (expediente_id, created_at desc);
 
+-- Última foto conocida de los movimientos del expediente en GDE (Gestión
+-- Documental Electrónica), independiente del seguimiento de comprar.gob.ar.
+create table if not exists gde_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  expediente_id uuid not null references expedientes (id) on delete cascade,
+  movimientos jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists gde_snapshots_expediente_idx
+  on gde_snapshots (expediente_id, created_at desc);
+
 -- Novedades detectadas (lo que se muestra en el dashboard)
 create table if not exists novedades (
   id uuid primary key default gen_random_uuid(),
   expediente_id uuid not null references expedientes (id) on delete cascade,
-  tipo text not null check (tipo in ('consulta_nueva', 'cambio_estado', 'vencimiento_proximo')),
+  tipo text not null check (tipo in ('consulta_nueva', 'cambio_estado', 'vencimiento_proximo', 'movimiento_gde')),
   detalle text not null,
   detectado_en timestamptz not null default now(),
   leida boolean not null default false
@@ -100,7 +112,8 @@ create table if not exists scrape_runs (
   finished_at timestamptz,
   ok boolean,
   error text,
-  expedientes_revisados integer not null default 0
+  expedientes_revisados integer not null default 0,
+  expedientes_gde_revisados integer not null default 0
 );
 
 -- RLS: la app web solo la usa el admin autenticado (login con Supabase Auth).
@@ -108,6 +121,7 @@ create table if not exists scrape_runs (
 alter table expedientes enable row level security;
 alter table ejecucion_oc enable row level security;
 alter table snapshots enable row level security;
+alter table gde_snapshots enable row level security;
 alter table novedades enable row level security;
 alter table scrape_runs enable row level security;
 
@@ -118,6 +132,9 @@ create policy "authenticated_all_ejecucion_oc" on ejecucion_oc
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 create policy "authenticated_read_snapshots" on snapshots
+  for select using (auth.role() = 'authenticated');
+
+create policy "authenticated_read_gde_snapshots" on gde_snapshots
   for select using (auth.role() = 'authenticated');
 
 create policy "authenticated_all_novedades" on novedades
