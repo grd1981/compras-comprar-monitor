@@ -113,11 +113,13 @@ export async function actualizarExpediente(
 export async function toggleActivo(id: string, activo: boolean) {
   const supabase = await createClient();
   await supabase.from("expedientes").update({ activo }).eq("id", id);
-  revalidatePath("/expedientes");
+  revalidatePath("/expedientes", "layout");
+  revalidatePath(`/expedientes/${id}`);
 }
 
 export async function eliminarExpediente(id: string) {
   const supabase = await createClient();
   await supabase.from("expedientes").delete().eq("id", id);
-  revalidatePath("/expedientes");
+  revalidatePath("/expedientes", "layout");
+  redirect("/expedientes");
 }

@@ -3,31 +3,60 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { EjecucionOC, Expediente, Novedad, Snapshot } from "@/lib/types";
 import { formatFechaCompleta, formatFechaCorta, formatMonto } from "@/lib/format";
-import { badgeClasses, buttonDanger, cardClasses, estadoProcesoClasses, tipoLabel } from "@/lib/ui";
+import { badgeClasses, buttonDanger, estadoProcesoClasses, tipoLabel } from "@/lib/ui";
 import { marcarLeida } from "../../actions";
+import { eliminarExpediente, toggleActivo } from "../actions";
 import { actualizarCantidadEntregada, eliminarRenglonOC } from "./ejecucion-actions";
 import { NuevoRenglonForm } from "./nuevo-renglon-form";
 
-function Dato({ label, valor }: { label: string; valor: React.ReactNode }) {
+function DocIcon() {
   return (
-    <div>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className="h-4 w-4"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M14 2.5V7a2 2 0 0 0 2 2h4.5M14 2.5H6.5A1.5 1.5 0 0 0 5 4v16a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 20V8.5L14 2.5Z"
+      />
+    </svg>
+  );
+}
+
+function Dato({ label, children }: { label: string; children?: React.ReactNode }) {
+  return (
+    <div className="border-b border-zinc-100 py-2 dark:border-zinc-900">
       <dt className="text-xs text-zinc-500">{label}</dt>
-      <dd className="text-sm">{valor || "—"}</dd>
+      <dd className="text-sm">{children ?? <span className="text-zinc-400">—</span>}</dd>
     </div>
   );
 }
 
-function Link_({ href }: { href: string | null }) {
-  if (!href) return <>—</>;
+function ValorLink({ href }: { href: string | null }) {
+  if (!href) return null;
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline dark:text-blue-400">
-      Ver
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      title="Ver documento"
+      className="inline-flex text-blue-600 hover:text-blue-700 dark:text-blue-400"
+    >
+      <DocIcon />
     </a>
   );
 }
 
-function Check({ si }: { si: boolean }) {
-  return <span>{si ? "✅ Sí" : "— No"}</span>;
+function Estado({ si, siTexto = "Sí", noTexto = "No" }: { si: boolean; siTexto?: string; noTexto?: string }) {
+  return (
+    <span className={si ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-500"}>
+      {si ? siTexto : noTexto}
+    </span>
+  );
 }
 
 export default async function ExpedienteDetallePage({
@@ -78,10 +107,7 @@ export default async function ExpedienteDetallePage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/expedientes" className="text-xs text-zinc-500 hover:underline">
-          ← Volver a Licitaciones
-        </Link>
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-lg font-semibold">{expediente.numero}</h1>
             {!expediente.activo && (
@@ -95,12 +121,24 @@ export default async function ExpedienteDetallePage({
               {expediente.estado_proceso ?? "sin estado"}
             </span>
           </div>
-          <Link
-            href={`/expedientes/${id}/editar`}
-            className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            Editar
-          </Link>
+          <div className="flex items-center gap-3 text-sm">
+            <Link
+              href={`/expedientes/${id}/editar`}
+              className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Editar
+            </Link>
+            <form action={toggleActivo.bind(null, id, !expediente.activo)}>
+              <button type="submit" className="text-zinc-500 hover:underline">
+                {expediente.activo ? "Pausar" : "Reactivar"}
+              </button>
+            </form>
+            <form action={eliminarExpediente.bind(null, id)}>
+              <button type="submit" className="text-red-600 hover:underline dark:text-red-400">
+                Eliminar
+              </button>
+            </form>
+          </div>
         </div>
         {expediente.organismo && (
           <p className="text-sm text-zinc-500">{expediente.organismo}</p>
@@ -122,131 +160,98 @@ export default async function ExpedienteDetallePage({
         )}
       </div>
 
-      <div className={`${cardClasses} space-y-4`}>
-        <h2 className="text-sm font-semibold">Ficha de la licitación</h2>
+      <dl>
+        <Dato label="Expediente">{expediente.expediente_nro}</Dato>
+        <Dato label="Procedimiento">{expediente.procedimiento}</Dato>
+        <Dato label="Anexo">{expediente.anexo}</Dato>
+        <Dato label="Ejercicio">{expediente.ejercicio}</Dato>
+        <Dato label="Objeto">{expediente.objeto}</Dato>
+        <Dato label="Monto estimado">
+          {formatMonto(expediente.monto_estimado, expediente.moneda)}
+        </Dato>
 
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Dato label="Expediente" valor={expediente.expediente_nro} />
-          <Dato label="Procedimiento" valor={expediente.procedimiento} />
-          <Dato label="Anexo" valor={expediente.anexo} />
-          <Dato label="Ejercicio" valor={expediente.ejercicio} />
-          <Dato
-            label="Monto estimado"
-            valor={formatMonto(expediente.monto_estimado, expediente.moneda)}
-          />
-        </dl>
+        <Dato label="Envío a Jurídica">
+          <Estado si={expediente.envio_jur} siTexto="Enviado" noTexto="No enviado" />
+          {expediente.fecha_jur && (
+            <span className="ml-2 text-zinc-500">
+              {formatFechaCorta(expediente.fecha_jur)}
+            </span>
+          )}
+        </Dato>
+        <Dato label="Envío a la CECE">
+          <Estado si={expediente.envio_cece} siTexto="Enviado" noTexto="No enviado" />
+          {expediente.cece_link && (
+            <span className="ml-2">
+              <ValorLink href={expediente.cece_link} />
+            </span>
+          )}
+        </Dato>
+        <Dato label="BORA">
+          <Estado si={expediente.bora} siTexto="Publicado" noTexto="No publicado" />
+          {expediente.bora_link && (
+            <span className="ml-2">
+              <ValorLink href={expediente.bora_link} />
+            </span>
+          )}
+        </Dato>
+        <Dato label="Pedido SIGEN">
+          <Estado si={expediente.pedido_sigen} siTexto="Enviado" noTexto="No enviado" />
+          {expediente.pedido_sigen_link && (
+            <span className="ml-2">
+              <ValorLink href={expediente.pedido_sigen_link} />
+            </span>
+          )}
+        </Dato>
+        <Dato label="Fecha de difusión">
+          {expediente.fecha_difusion ? formatFechaCorta(expediente.fecha_difusion) : null}
+        </Dato>
+        <Dato label="Respuesta SIGEN">
+          <Estado si={expediente.respuesta_sigen} siTexto="Recibida" noTexto="Pendiente" />
+          {expediente.link_rta_sigen && (
+            <span className="ml-2">
+              <ValorLink href={expediente.link_rta_sigen} />
+            </span>
+          )}
+        </Dato>
+        <Dato label="Resol. aprobación PBCP">
+          {expediente.resol_aprobacion_pbcp}
+          {expediente.resol_link && (
+            <span className="ml-2">
+              <ValorLink href={expediente.resol_link} />
+            </span>
+          )}
+        </Dato>
 
-        <div>
-          <h3 className="mb-2 text-xs font-semibold text-zinc-500 uppercase">
-            Circuito interno
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <tbody>
-                <tr className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-1 pr-3">Envío a Jurídica</td>
-                  <td className="py-1 pr-3"><Check si={expediente.envio_jur} /></td>
-                  <td className="py-1 pr-3 text-zinc-500">
-                    {expediente.fecha_jur ? formatFechaCorta(expediente.fecha_jur) : "—"}
-                  </td>
-                </tr>
-                <tr className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-1 pr-3">Envío a la CECE</td>
-                  <td className="py-1 pr-3"><Check si={expediente.envio_cece} /></td>
-                  <td className="py-1 pr-3"><Link_ href={expediente.cece_link} /></td>
-                </tr>
-                <tr className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-1 pr-3">BORA</td>
-                  <td className="py-1 pr-3"><Check si={expediente.bora} /></td>
-                  <td className="py-1 pr-3"><Link_ href={expediente.bora_link} /></td>
-                </tr>
-                <tr className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-1 pr-3">Pedido SIGEN</td>
-                  <td className="py-1 pr-3"><Check si={expediente.pedido_sigen} /></td>
-                  <td className="py-1 pr-3"><Link_ href={expediente.pedido_sigen_link} /></td>
-                </tr>
-                <tr className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-1 pr-3">Respuesta SIGEN</td>
-                  <td className="py-1 pr-3"><Check si={expediente.respuesta_sigen} /></td>
-                  <td className="py-1 pr-3"><Link_ href={expediente.link_rta_sigen} /></td>
-                </tr>
-                <tr>
-                  <td className="py-1 pr-3">Fecha de difusión</td>
-                  <td colSpan={2} className="py-1 pr-3 text-zinc-500">
-                    {expediente.fecha_difusion
-                      ? formatFechaCorta(expediente.fecha_difusion)
-                      : "—"}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="mb-2 text-xs font-semibold text-zinc-500 uppercase">
-            Apertura y adjudicación
-          </h3>
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Dato
-              label="Resol. aprobación PBCP"
-              valor={
-                expediente.resol_aprobacion_pbcp ? (
-                  <>
-                    {expediente.resol_aprobacion_pbcp}{" "}
-                    <Link_ href={expediente.resol_link} />
-                  </>
-                ) : null
-              }
-            />
-            <Dato
-              label="Fecha / hora apertura"
-              valor={
-                expediente.fecha_apertura
-                  ? `${formatFechaCorta(expediente.fecha_apertura)} ${expediente.hora_apertura ?? ""}`
-                  : null
-              }
-            />
-            <Dato label="Acta de apertura" valor={<Link_ href={expediente.acta_apertura_link} />} />
-            <Dato
-              label="Cuadro comparativo"
-              valor={<Link_ href={expediente.cuadro_comparativo_link} />}
-            />
-            <Dato
-              label="Resol. de adjudicación"
-              valor={
-                expediente.resolucion_adjudicacion ? (
-                  <>
-                    {expediente.resolucion_adjudicacion}{" "}
-                    <Link_ href={expediente.link_resol_adj} />
-                  </>
-                ) : null
-              }
-            />
-            <Dato
-              label="Monto adjudicado"
-              valor={formatMonto(expediente.monto_adjudicado, expediente.moneda)}
-            />
-            <Dato
-              label="Plazo del contrato"
-              valor={
-                expediente.plazo_contrato
-                  ? formatFechaCorta(expediente.plazo_contrato)
-                  : null
-              }
-            />
-          </dl>
-        </div>
+        <Dato label="Fecha / hora de apertura">
+          {expediente.fecha_apertura
+            ? `${formatFechaCorta(expediente.fecha_apertura)}${expediente.hora_apertura ? ` ${expediente.hora_apertura}` : ""}`
+            : null}
+        </Dato>
+        <Dato label="Acta de apertura">
+          <ValorLink href={expediente.acta_apertura_link} />
+        </Dato>
+        <Dato label="Cuadro comparativo">
+          <ValorLink href={expediente.cuadro_comparativo_link} />
+        </Dato>
+        <Dato label="Resolución de adjudicación">
+          {expediente.resolucion_adjudicacion}
+          {expediente.link_resol_adj && (
+            <span className="ml-2">
+              <ValorLink href={expediente.link_resol_adj} />
+            </span>
+          )}
+        </Dato>
+        <Dato label="Monto adjudicado">
+          {formatMonto(expediente.monto_adjudicado, expediente.moneda)}
+        </Dato>
+        <Dato label="Plazo del contrato">
+          {expediente.plazo_contrato ? formatFechaCorta(expediente.plazo_contrato) : null}
+        </Dato>
 
         {expediente.observaciones && (
-          <div>
-            <h3 className="mb-1 text-xs font-semibold text-zinc-500 uppercase">
-              Observaciones
-            </h3>
-            <p className="text-sm">{expediente.observaciones}</p>
-          </div>
+          <Dato label="Observaciones">{expediente.observaciones}</Dato>
         )}
-      </div>
+      </dl>
 
       <div className="space-y-3">
         <h2 className="text-sm font-semibold">Ejecución de la OC</h2>
@@ -324,8 +329,8 @@ export default async function ExpedienteDetallePage({
         <NuevoRenglonForm expedienteId={id} />
       </div>
 
-      <div className={cardClasses}>
-        <h2 className="mb-3 text-sm font-semibold">
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold">
           Última foto automática de comprar.gob.ar
         </h2>
         {!actual ? (
@@ -334,21 +339,16 @@ export default async function ExpedienteDetallePage({
             expediente (necesita tener URL cargada y que corra el scraper).
           </p>
         ) : (
-          <div className="space-y-3 text-sm">
-            <p>
-              <span className="text-zinc-500">Estado de la solicitud (auto): </span>
-              {actual.estado ?? "—"}
-            </p>
-            <p>
-              <span className="text-zinc-500">Plazo / fecha de apertura (auto): </span>
-              {actual.plazo_limite ? formatFechaCompleta(actual.plazo_limite) : "—"}
-            </p>
-            <div>
-              <span className="text-zinc-500">Consultas / circulares: </span>
+          <dl>
+            <Dato label="Estado de la solicitud (auto)">{actual.estado}</Dato>
+            <Dato label="Plazo / fecha de apertura (auto)">
+              {actual.plazo_limite ? formatFechaCompleta(actual.plazo_limite) : null}
+            </Dato>
+            <Dato label="Consultas / circulares">
               {actual.consultas.length === 0 ? (
                 "ninguna"
               ) : (
-                <ul className="mt-1 list-inside list-disc space-y-0.5">
+                <ul className="list-inside list-disc space-y-0.5">
                   {actual.consultas.map((c) => (
                     <li key={c.id}>
                       {c.texto}
@@ -357,11 +357,11 @@ export default async function ExpedienteDetallePage({
                   ))}
                 </ul>
               )}
-            </div>
-            <p className="text-xs text-zinc-500">
+            </Dato>
+            <p className="pt-2 text-xs text-zinc-500">
               Última revisión: {formatFechaCompleta(actual.created_at)}
             </p>
-          </div>
+          </dl>
         )}
       </div>
 
@@ -374,7 +374,7 @@ export default async function ExpedienteDetallePage({
             {listaNovedades.map((n) => (
               <li
                 key={n.id}
-                className={`${cardClasses} ${n.leida ? "opacity-60" : ""}`}
+                className={`rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 ${n.leida ? "opacity-60" : ""}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
